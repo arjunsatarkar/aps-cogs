@@ -1,0 +1,5 @@
+{
+    "author": ["Arjun Satarkar"],
+    "description": "Delegate the ability to pin and unpin messages (using a command) to another user in a particular channel or thread.",
+    "short": "Delegate pinning in a channel."
+}
