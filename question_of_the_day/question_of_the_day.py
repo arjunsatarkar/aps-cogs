@@ -80,10 +80,12 @@ class QuestionOfTheDay(commands.Cog):
         minute = current_datetime.minute
 
         last_posted_time = await self.config.last_posted_qotds_at()
-        last_posted_datetime = datetime.datetime.fromtimestamp(
-            last_posted_time, datetime.timezone.utc
+        last_posted_datetime = (
+            datetime.datetime.fromtimestamp(last_posted_time, datetime.timezone.utc)
+            if last_posted_time
+            else None
         )
-        if not (
+        if not last_posted_datetime or not (
             hour == last_posted_datetime.hour and minute == last_posted_datetime.minute
         ):
             await post_qotds_for_time(hour, minute)
@@ -104,11 +106,17 @@ class QuestionOfTheDay(commands.Cog):
 
     @commands.group()
     async def qotd(self, _ctx):
+        """
+        Base for all question of the day commands.
+        """
         pass
 
     @qotd.command()
     @checks.admin_or_permissions(manage_server=True)
     async def add(self, ctx, *, question: str):
+        """
+        Add a question directly to the main queue (requires elevated permissions).
+        """
         if not await self.check_and_handle_question_length(ctx, question):
             return
         async with self.config.guild(ctx.guild).questions() as questions:
@@ -121,8 +129,10 @@ class QuestionOfTheDay(commands.Cog):
         await ctx.reply("Question added!")
 
     @qotd.command()
-    @checks.admin_or_permissions(manage_server=True)
     async def list(self, ctx):
+        """
+        Show questions in the main queue.
+        """
         pages = await self.paginate_questions(
             ctx, await self.config.guild(ctx.guild).questions()
         )
@@ -134,6 +144,9 @@ class QuestionOfTheDay(commands.Cog):
     @qotd.command()
     @checks.admin_or_permissions(manage_server=True)
     async def remove(self, ctx, question_id: int):
+        """
+        Remove a question from the queue using its id (see `qotd list`).
+        """
         async with self.config.guild(ctx.guild).questions() as questions:
             try:
                 del questions[question_id - 1]
@@ -144,6 +157,7 @@ class QuestionOfTheDay(commands.Cog):
     @qotd.command()
     @checks.admin_or_permissions(manage_server=True)
     async def post_at(self, ctx, hour_after_midnight_utc: int, minute_after_hour: int):
+        """Set the time to post a QOTD every day in this server."""
         if (
             hour_after_midnight_utc >= 0
             and hour_after_midnight_utc < 24
