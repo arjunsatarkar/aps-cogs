@@ -61,7 +61,7 @@ class PinDelegate(commands.Cog):
         Pin the replied-to message.
         """
         if await self.is_pin_capable(ctx.channel, ctx.author.id):
-            await ctx.message.reference.resolved.pin()
+            await ctx.message.reference.resolved.pin(reason=f"On behalf of {ctx.author.name}")
 
     @commands.command()
     async def unpin(self, ctx):
@@ -71,7 +71,7 @@ class PinDelegate(commands.Cog):
         replied_to_message = ctx.message.reference.resolved
         if await self.is_pin_capable(ctx.channel, ctx.author.id):
             if replied_to_message.pinned:
-                await replied_to_message.unpin()
+                await replied_to_message.unpin(reason=f"On behalf of {ctx.author.name}")
                 await ctx.reply("Unpinned message!")
             else:
                 await ctx.reply("That message was already not pinned.")
