@@ -15,6 +15,9 @@ class PinDelegate(commands.Cog):
     @commands.command()
     @checks.admin_or_permissions(administrator=True)
     async def pindelegate(self, ctx, user: discord.Member):
+        """
+        Grant a user the ability to pin messages in this channel with the pin command.
+        """
         async with self.config.channel(
             ctx.channel
         ).pin_capable_members() as pin_capable_members:
@@ -26,6 +29,9 @@ class PinDelegate(commands.Cog):
     @commands.command()
     @checks.admin_or_permissions(administrator=True)
     async def pinundelegate(self, ctx, user: discord.Member):
+        """
+        Remove a user's ability to pin messages in this channel.
+        """
         async with self.config.channel(
             ctx.channel
         ).pin_capable_members() as pin_capable_members:
@@ -51,11 +57,17 @@ class PinDelegate(commands.Cog):
 
     @commands.command()
     async def pin(self, ctx):
+        """
+        Pin the replied-to message.
+        """
         if await self.is_pin_capable(ctx.channel, ctx.author.id):
             await ctx.message.reference.resolved.pin()
 
     @commands.command()
     async def unpin(self, ctx):
+        """
+        Unpin the replied-to message.
+        """
         replied_to_message = ctx.message.reference.resolved
         if await self.is_pin_capable(ctx.channel, ctx.author.id):
             if replied_to_message.pinned:
