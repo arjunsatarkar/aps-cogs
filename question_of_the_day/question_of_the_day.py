@@ -143,6 +143,11 @@ class QuestionOfTheDay(commands.Cog):
     @qotd.command()
     @checks.admin_or_permissions(manage_server=True)
     async def post(self, ctx):
+        """
+        Post a question immediately.
+
+        A question will still be sent at the scheduled time if automatic posting is enabled.
+        """
         channel_id = await self.config.guild(ctx.guild).post_in_channel()
         if channel_id:
             await self.send_question_to_channel(
