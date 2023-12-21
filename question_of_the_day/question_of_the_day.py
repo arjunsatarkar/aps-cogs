@@ -188,7 +188,7 @@ class QuestionOfTheDay(commands.Cog):
                             (hour_after_midnight_utc, minute_after_hour)
                         ] = {ctx.guild.id: 1}
             await ctx.reply(
-                f"The bot will post the question of the day {hour_after_midnight_utc:0>2}:{minute_after_hour:0>2} hours after midnight UTC."
+                f"The bot will post the question of the day at {hour_after_midnight_utc:0>2}:{minute_after_hour:0>2} UTC."
             )
         else:
             await ctx.reply(
@@ -321,14 +321,20 @@ class QuestionOfTheDay(commands.Cog):
         async with self.config.guild(guild).questions() as questions:
             questions_len = len(questions)
             if not questions_len:
-                await channel.send("# Question of the Day\n**No questions left!**")
+                await channel.send("**Question of the day: no questions left!**")
             else:
                 question_index = random.randrange(0, questions_len)
                 question = questions[question_index]
+                asked_by = await guild.fetch_member(question["asked_by"])
+                allowed_mentions = discord.AllowedMentions.none()
+                allowed_mentions.users = [asked_by]
                 message = await channel.send(
-                    f"# Question of the Day\n"
-                    f"{question['question']}\n{redbot.core.utils.chat_formatting.italics((await guild.fetch_member(question['asked_by'])).name)}"
-                    f" ({question['asked_by']})"
+                    f"**Question of the day:** "
+                    f"{question['question']}\n"
+                    + redbot.core.utils.chat_formatting.italics(
+                        "asked by " + asked_by.mention
+                    ),
+                    allowed_mentions=allowed_mentions,
                 )
                 del questions[question_index]
                 await self.manage_qotd_pins(message)
@@ -368,7 +374,8 @@ class QuestionOfTheDay(commands.Cog):
                     "\n".join(
                         [
                             f"{i + 1}. {redbot.core.utils.chat_formatting.bold(question['question'])} by "
-                            f"{redbot.core.utils.chat_formatting.bold(str(await ctx.guild.fetch_member(question['asked_by'])) + ' (' + str(question['asked_by']) + ')')}"
+                            + (await ctx.guild.fetch_member(question["asked_by"])).name
+                            + f" ({question['asked_by']})"
                             for i, question in enumerate(questions)
                         ]
                     )
