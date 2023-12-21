@@ -1,3 +1,4 @@
+import discord
 from discord.ext import tasks
 from redbot.core import Config
 from redbot.core import checks
@@ -22,12 +23,16 @@ class QuestionOfTheDay(commands.Cog):
         )
         self.config.register_guild(
             questions=[],
+            suggested_questions=[],
             post_at={"hour": 0, "minute": 0},
             post_in_channel=None,
             enabled=False,
         )
         self.config.register_global(last_posted_qotds_at=None, guild_to_post_at={})
         self.post_qotds.start()
+
+    async def cog_unload(self):
+        self.post_qotds.cancel()
 
     @tasks.loop(seconds=30)
     async def post_qotds(self):
@@ -97,9 +102,6 @@ class QuestionOfTheDay(commands.Cog):
 
         await self.config.last_posted_qotds_at.set(current_time)
 
-    async def cog_unload(self):
-        self.post_qotds.cancel()
-
     @commands.group()
     async def qotd(self, _ctx):
         pass
@@ -110,7 +112,7 @@ class QuestionOfTheDay(commands.Cog):
         if not await self.check_and_handle_question_length(ctx, question):
             return
         async with self.config.guild(ctx.guild).questions() as questions:
-            if len(questions) > MAX_QUESTIONS_PER_GUILD:
+            if len(questions) >= MAX_QUESTIONS_PER_GUILD:
                 await ctx.reply(
                     f"Error: too many questions already added in this server! Max is {MAX_QUESTIONS_PER_GUILD}."
                 )
@@ -121,22 +123,9 @@ class QuestionOfTheDay(commands.Cog):
     @qotd.command()
     @checks.admin_or_permissions(manage_server=True)
     async def list(self, ctx):
-        pages = [
-            x
-            for x in redbot.core.utils.chat_formatting.pagify(
-                redbot.core.utils.common_filters.filter_various_mentions(
-                    "\n".join(
-                        [
-                            f"{i + 1}. {redbot.core.utils.chat_formatting.bold(question['question'])} by "
-                            f"{redbot.core.utils.chat_formatting.bold(str(await ctx.guild.fetch_member(question['asked_by'])) + ' (' + str(question['asked_by']) + ')')}"
-                            for i, question in enumerate(
-                                await self.config.guild(ctx.guild).questions()
-                            )
-                        ]
-                    )
-                )
-            )
-        ]
+        pages = await self.paginate_questions(
+            ctx, await self.config.guild(ctx.guild).questions()
+        )
         if pages:
             await redbot.core.utils.menus.menu(ctx, pages)
         else:
@@ -148,10 +137,9 @@ class QuestionOfTheDay(commands.Cog):
         async with self.config.guild(ctx.guild).questions() as questions:
             try:
                 del questions[question_id - 1]
+                await ctx.reply(f"Deleted question {question_id}.")
             except IndexError:
                 await ctx.reply(f"Error: no question with id {question_id}.")
-                return
-        await ctx.reply(f"Deleted question {question_id}.")
 
     @qotd.command()
     @checks.admin_or_permissions(manage_server=True)
@@ -195,14 +183,6 @@ class QuestionOfTheDay(commands.Cog):
         await self.config.guild(ctx.guild).post_in_channel.set(ctx.channel.id)
         await ctx.reply("Questions of the day will be posted in this channel.")
 
-    async def check_and_handle_question_length(self, ctx, question: str):
-        if len(question.encode("utf-8")) > MAX_QUESTION_SIZE:
-            await ctx.reply(
-                f"Error: that question is too long! Maximum length is {MAX_QUESTION_SIZE} bytes."
-            )
-            return False
-        return True
-
     @qotd.command()
     @checks.admin_or_permissions(manage_server=True)
     async def toggle(self, ctx):
@@ -221,3 +201,98 @@ class QuestionOfTheDay(commands.Cog):
             if should_be_enabled
             else "QOTDs will no longer be posted."
         )
+
+    @qotd.command()
+    async def suggest(self, ctx, *, question: str):
+        if not await self.check_and_handle_question_length(ctx, question):
+            return
+        async with self.config.guild(
+            ctx.guild
+        ).suggested_questions() as suggested_questions:
+            if len(suggested_questions) >= MAX_QUESTIONS_PER_GUILD:
+                await ctx.reply(
+                    f"Error: too many questions already in the suggestion queue for this server! Max is {MAX_QUESTIONS_PER_GUILD}."
+                )
+                return
+            suggested_questions.append(
+                {"question": question, "asked_by": ctx.author.id}
+            )
+        await ctx.reply("Added question to suggestion queue!")
+
+    @qotd.command()
+    async def suggestions(self, ctx):
+        pages = await self.paginate_questions(
+            ctx, await self.config.guild(ctx.guild).suggested_questions()
+        )
+        if pages:
+            await redbot.core.utils.menus.menu(ctx, pages)
+        else:
+            await ctx.reply("No suggested questions yet.")
+
+    @qotd.command()
+    @checks.admin_or_permissions(manage_server=True)
+    async def approve(self, ctx, suggestion_id: int):
+        async with self.config.guild(
+            ctx.guild
+        ).suggested_questions() as suggested_questions:
+            try:
+                suggested_question = suggested_questions[suggestion_id - 1]
+            except IndexError:
+                await ctx.reply(f"Error: no suggestion with id {suggestion_id}.")
+                return
+            async with self.config.guild(ctx.guild).questions() as questions:
+                if len(questions) >= MAX_QUESTIONS_PER_GUILD:
+                    await ctx.reply(
+                        f"Error: there are already {MAX_QUESTIONS_PER_GUILD} questions in the main queue; can't approve suggestion."
+                    )
+                else:
+                    questions.append(suggested_question)
+                    del suggested_questions[suggestion_id - 1]
+                    await ctx.reply(
+                        f"Approved suggestion {suggestion_id}:\n"
+                        + redbot.core.utils.chat_formatting.quote(
+                            suggested_question["question"]
+                        ),
+                        allowed_mentions=discord.AllowedMentions.none(),
+                    )
+
+    @qotd.command()
+    @checks.admin_or_permissions(manage_server=True)
+    async def deny(self, ctx, suggestion_id: int):
+        async with self.config.guild(
+            ctx.guild
+        ).suggested_questions() as suggested_questions:
+            try:
+                question_text = suggested_questions[suggestion_id - 1]["question"]
+                del suggested_questions[suggestion_id - 1]
+                await ctx.reply(
+                    f"Deleted suggestion {suggestion_id}:\n"
+                    + redbot.core.utils.chat_formatting.quote(question_text),
+                    allowed_mentions=discord.AllowedMentions.none(),
+                )
+            except IndexError:
+                await ctx.reply(f"Error: no suggestion with id {suggestion_id}.")
+
+    async def paginate_questions(self, ctx, questions: list):
+        return [
+            x
+            for x in redbot.core.utils.chat_formatting.pagify(
+                redbot.core.utils.common_filters.filter_various_mentions(
+                    "\n".join(
+                        [
+                            f"{i + 1}. {redbot.core.utils.chat_formatting.bold(question['question'])} by "
+                            f"{redbot.core.utils.chat_formatting.bold(str(await ctx.guild.fetch_member(question['asked_by'])) + ' (' + str(question['asked_by']) + ')')}"
+                            for i, question in enumerate(questions)
+                        ]
+                    )
+                )
+            )
+        ]
+
+    async def check_and_handle_question_length(self, ctx, question: str):
+        if len(question.encode("utf-8")) > MAX_QUESTION_SIZE:
+            await ctx.reply(
+                f"Error: that question is too long! Maximum length is {MAX_QUESTION_SIZE} bytes."
+            )
+            return False
+        return True
