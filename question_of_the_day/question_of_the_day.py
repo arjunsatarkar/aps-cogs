@@ -78,7 +78,9 @@ class QuestionOfTheDay(commands.Cog):
         last_posted_datetime = datetime.datetime.fromtimestamp(
             last_posted_time, datetime.timezone.utc
         )
-        if not (hour == last_posted_datetime.hour and minute == last_posted_datetime.minute):
+        if not (
+            hour == last_posted_datetime.hour and minute == last_posted_datetime.minute
+        ):
             await post_qotds_for_time(hour, minute)
 
             gap_secs = current_time - (last_posted_time or current_time)
