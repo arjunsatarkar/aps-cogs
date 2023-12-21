@@ -1,0 +1,5 @@
+{
+    "author": ["Arjun Satarkar"],
+    "description": "Post a random question in a specified channel every day. Users can submit questions for approval.",
+    "short": "Post (customizable) questions every day."
+}
