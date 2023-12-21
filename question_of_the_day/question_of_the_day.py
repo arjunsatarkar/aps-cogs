@@ -30,13 +30,13 @@ class QuestionOfTheDay(commands.Cog):
             latest_qotd_message_info={"channel_id": None, "message_id": None},
         )
         self.config.register_global(last_posted_qotds_at=None, guild_to_post_at={})
-        self.post_qotds.start()
+        self.post_qotds_loop.start()
 
     async def cog_unload(self):
-        self.post_qotds.cancel()
+        self.post_qotds_loop.cancel()
 
     @tasks.loop(seconds=30)
-    async def post_qotds(self):
+    async def post_qotds_loop(self):
         async def post_qotds_for_time(hour, minute):
             try:
                 guilds_due = (await self.config.guild_to_post_at())[
@@ -53,7 +53,7 @@ class QuestionOfTheDay(commands.Cog):
                         f"QOTD was due for guild {guild.name} ({guild_id}) but no channel was set, so it was not posted."
                     )
                 channel = await guild.fetch_channel(channel_id)
-                await self.post_question(channel)
+                await self.send_question_to_channel(channel)
 
         current_time = time.time()
 
@@ -74,7 +74,9 @@ class QuestionOfTheDay(commands.Cog):
         ):
             await post_qotds_for_time(hour, minute)
 
-            gap_secs = current_time - (last_posted_time or current_time)
+            gap_secs = current_time - (
+                last_posted_time if last_posted_time is not None else current_time
+            )
             if gap_secs >= 60:
                 # Posts may have been missed; recover them up to an hour
                 self.logger.info(f"Detected gap of {gap_secs} seconds.")
@@ -140,6 +142,19 @@ class QuestionOfTheDay(commands.Cog):
 
     @qotd.command()
     @checks.admin_or_permissions(manage_server=True)
+    async def post(self, ctx):
+        channel_id = await self.config.guild(ctx.guild).post_in_channel()
+        if channel_id:
+            await self.send_question_to_channel(
+                await ctx.guild.fetch_channel(channel_id)
+            )
+        else:
+            await ctx.reply(
+                "Error: no channel set! Use `qotd post_here` in the intended channel first."
+            )
+
+    @qotd.command()
+    @checks.admin_or_permissions(manage_server=True)
     async def post_at(self, ctx, hour_after_midnight_utc: int, minute_after_hour: int):
         """Set the time to post a QOTD every day in this server."""
         if (
@@ -191,7 +206,7 @@ class QuestionOfTheDay(commands.Cog):
     @checks.admin_or_permissions(manage_server=True)
     async def toggle(self, ctx):
         """
-        Turn questions of the day on or off for this server.
+        Turn on or off automatic posting of questions of the day in this server.
         """
         should_be_enabled = not await self.config.guild(ctx.guild).enabled()
         await self.config.guild(ctx.guild).enabled.set(should_be_enabled)
@@ -296,7 +311,7 @@ class QuestionOfTheDay(commands.Cog):
             except IndexError:
                 await ctx.reply(f"Error: no suggestion with id {suggestion_id}.")
 
-    async def post_question(self, channel):
+    async def send_question_to_channel(self, channel):
         guild = channel.guild
         async with self.config.guild(guild).questions() as questions:
             questions_len = len(questions)
