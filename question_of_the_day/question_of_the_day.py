@@ -27,6 +27,7 @@ class QuestionOfTheDay(commands.Cog):
             post_at={"hour": 0, "minute": 0},
             post_in_channel=None,
             enabled=False,
+            latest_qotd_message_info={"channel_id": None, "message_id": None},
         )
         self.config.register_global(last_posted_qotds_at=None, guild_to_post_at={})
         self.post_qotds.start()
@@ -53,6 +54,7 @@ class QuestionOfTheDay(commands.Cog):
                     )
                 channel = await guild.fetch_channel(channel_id)
                 await self.post_question(channel)
+
         current_time = time.time()
 
         current_datetime = datetime.datetime.fromtimestamp(
@@ -179,8 +181,11 @@ class QuestionOfTheDay(commands.Cog):
         """
         Set the current channel as where QOTDs should be posted.
         """
-        await self.config.guild(ctx.guild).post_in_channel.set(ctx.channel.id)
-        await ctx.reply("Questions of the day will be posted in this channel.")
+        if isinstance(ctx.channel, discord.TextChannel):
+            await self.config.guild(ctx.guild).post_in_channel.set(ctx.channel.id)
+            await ctx.reply("Questions of the day will be posted in this channel.")
+        else:
+            await ctx.reply("Error: must use a text channel.")
 
     @qotd.command()
     @checks.admin_or_permissions(manage_server=True)
@@ -291,26 +296,49 @@ class QuestionOfTheDay(commands.Cog):
             except IndexError:
                 await ctx.reply(f"Error: no suggestion with id {suggestion_id}.")
 
-    async def post_question (self, channel):
+    async def post_question(self, channel):
         guild = channel.guild
         async with self.config.guild(guild).questions() as questions:
             questions_len = len(questions)
             if not questions_len:
-                await channel.send(
-                    "# Question of the Day\n**No questions left!**"
-                )
+                await channel.send("# Question of the Day\n**No questions left!**")
             else:
                 question_index = random.randrange(0, questions_len)
                 question = questions[question_index]
-                await channel.send(
+                message = await channel.send(
                     f"# Question of the Day\n"
                     f"{question['question']}\n{redbot.core.utils.chat_formatting.italics((await guild.fetch_member(question['asked_by'])).name)}"
                     f" ({question['asked_by']})"
                 )
                 del questions[question_index]
-                self.logger.info(
-                    f"Posted QOTD for guild {guild.name} ({guild.id})."
+                await self.manage_qotd_pins(message)
+                self.logger.info(f"Posted QOTD for guild {guild.name} ({guild.id}).")
+
+    async def manage_qotd_pins(self, new_message):
+        guild = new_message.guild
+        async with self.config.guild(
+            guild
+        ).latest_qotd_message_info() as latest_qotd_message_info:
+            if (
+                latest_qotd_message_info["channel_id"] is not None
+                and latest_qotd_message_info["message_id"] is not None
+            ):
+                channel = await guild.fetch_channel(
+                    latest_qotd_message_info["channel_id"]
                 )
+                old_message = await channel.fetch_message(
+                    latest_qotd_message_info["message_id"]
+                )
+                try:
+                    await old_message.unpin(reason="Unpinning old question of the day.")
+                except (discord.Forbidden, discord.NotFound):
+                    pass
+            try:
+                await new_message.pin(reason="Pinning new question of the day.")
+            except (discord.Forbidden, discord.NotFound):
+                pass
+            latest_qotd_message_info["channel_id"] = new_message.channel.id
+            latest_qotd_message_info["message_id"] = new_message.id
 
     async def paginate_questions(self, ctx, questions: list):
         return [
