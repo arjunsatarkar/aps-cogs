@@ -51,26 +51,8 @@ class QuestionOfTheDay(commands.Cog):
                     self.logger.info(
                         f"QOTD was due for guild {guild.name} ({guild_id}) but no channel was set, so it was not posted."
                     )
-                async with self.config.guild(guild).questions() as questions:
-                    channel = await guild.fetch_channel(channel_id)
-                    questions_len = len(questions)
-                    if not questions_len:
-                        await channel.send(
-                            "# Question of the Day\n**No questions left!**"
-                        )
-                        continue
-                    question_index = random.randrange(0, questions_len)
-                    question = questions[question_index]
-                    await channel.send(
-                        f"# Question of the Day\n"
-                        f"{question['question']}\n{redbot.core.utils.chat_formatting.italics((await guild.fetch_member(question['asked_by'])).name)}"
-                        f" ({question['asked_by']})"
-                    )
-                    del questions[question_index]
-                    self.logger.info(
-                        f"Posted QOTD for guild {guild.name} ({guild_id})."
-                    )
-
+                channel = await guild.fetch_channel(channel_id)
+                await self.post_question(channel)
         current_time = time.time()
 
         current_datetime = datetime.datetime.fromtimestamp(
@@ -194,12 +176,18 @@ class QuestionOfTheDay(commands.Cog):
     @qotd.command()
     @checks.admin_or_permissions(manage_server=True)
     async def post_here(self, ctx):
+        """
+        Set the current channel as where QOTDs should be posted.
+        """
         await self.config.guild(ctx.guild).post_in_channel.set(ctx.channel.id)
         await ctx.reply("Questions of the day will be posted in this channel.")
 
     @qotd.command()
     @checks.admin_or_permissions(manage_server=True)
     async def toggle(self, ctx):
+        """
+        Turn questions of the day on or off for this server.
+        """
         should_be_enabled = not await self.config.guild(ctx.guild).enabled()
         await self.config.guild(ctx.guild).enabled.set(should_be_enabled)
         post_at = await self.config.guild(ctx.guild).post_at()
@@ -218,6 +206,9 @@ class QuestionOfTheDay(commands.Cog):
 
     @qotd.command()
     async def suggest(self, ctx, *, question: str):
+        """
+        Add a question to the suggestion queue (it can be approved or denied by moderators).
+        """
         if not await self.check_and_handle_question_length(ctx, question):
             return
         async with self.config.guild(
@@ -235,6 +226,9 @@ class QuestionOfTheDay(commands.Cog):
 
     @qotd.command()
     async def suggestions(self, ctx):
+        """
+        View all questions in the suggestion queue.
+        """
         pages = await self.paginate_questions(
             ctx, await self.config.guild(ctx.guild).suggested_questions()
         )
@@ -246,6 +240,11 @@ class QuestionOfTheDay(commands.Cog):
     @qotd.command()
     @checks.admin_or_permissions(manage_server=True)
     async def approve(self, ctx, suggestion_id: int):
+        """
+        Approve a suggestion using its id (see `qotd suggestions`).
+
+        This adds the suggestion to the main queue.
+        """
         async with self.config.guild(
             ctx.guild
         ).suggested_questions() as suggested_questions:
@@ -273,6 +272,11 @@ class QuestionOfTheDay(commands.Cog):
     @qotd.command()
     @checks.admin_or_permissions(manage_server=True)
     async def deny(self, ctx, suggestion_id: int):
+        """
+        Decline a suggestion and remove it from the suggestion queue.
+
+        For the suggestion's id, see `qotd suggestions`.
+        """
         async with self.config.guild(
             ctx.guild
         ).suggested_questions() as suggested_questions:
@@ -286,6 +290,27 @@ class QuestionOfTheDay(commands.Cog):
                 )
             except IndexError:
                 await ctx.reply(f"Error: no suggestion with id {suggestion_id}.")
+
+    async def post_question (self, channel):
+        guild = channel.guild
+        async with self.config.guild(guild).questions() as questions:
+            questions_len = len(questions)
+            if not questions_len:
+                await channel.send(
+                    "# Question of the Day\n**No questions left!**"
+                )
+            else:
+                question_index = random.randrange(0, questions_len)
+                question = questions[question_index]
+                await channel.send(
+                    f"# Question of the Day\n"
+                    f"{question['question']}\n{redbot.core.utils.chat_formatting.italics((await guild.fetch_member(question['asked_by'])).name)}"
+                    f" ({question['asked_by']})"
+                )
+                del questions[question_index]
+                self.logger.info(
+                    f"Posted QOTD for guild {guild.name} ({guild.id})."
+                )
 
     async def paginate_questions(self, ctx, questions: list):
         return [
