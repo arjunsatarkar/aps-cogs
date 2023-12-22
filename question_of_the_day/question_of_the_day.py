@@ -328,15 +328,11 @@ class QuestionOfTheDay(commands.Cog):
                 question_index = random.randrange(0, questions_len)
                 question = questions[question_index]
 
-                asked_by = await guild.fetch_member(question["asked_by"])
-                allowed_mentions = discord.AllowedMentions.none()
-                allowed_mentions.users = [asked_by]
-
                 embed = discord.Embed(
                     description=question["question"]
                     + "\n"
                     + redbot.core.utils.chat_formatting.italics(
-                        "asked by " + asked_by.mention
+                        "asked by " + (await guild.fetch_member(question["asked_by"])).mention
                     )
                 )
                 embed.set_author(
@@ -360,7 +356,7 @@ class QuestionOfTheDay(commands.Cog):
                         redbot.core.data_manager.bundled_data_path(self) / ICON_PATH,
                         ICON_PATH.name,
                     ),
-                    allowed_mentions=allowed_mentions,
+                    allowed_mentions=discord.AllowedMentions.none(),
                 )
 
                 del questions[question_index]
