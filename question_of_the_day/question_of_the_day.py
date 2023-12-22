@@ -336,7 +336,7 @@ class QuestionOfTheDay(commands.Cog):
                     description=question["question"]
                     + "\n"
                     + redbot.core.utils.chat_formatting.italics(
-                        "asked by" + asked_by.mention
+                        "asked by " + asked_by.mention
                     )
                 )
                 embed.set_author(
