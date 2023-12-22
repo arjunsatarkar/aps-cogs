@@ -7,11 +7,13 @@ import redbot.core
 import copy
 import datetime
 import logging
+import pathlib
 import random
 import time
 
 MAX_QUESTIONS_PER_GUILD = 1000
 MAX_QUESTION_SIZE = 500
+ICON_PATH = pathlib.Path("abstract_swirl/abstract_swirl_160x160.png")
 
 
 class QuestionOfTheDay(commands.Cog):
@@ -325,17 +327,42 @@ class QuestionOfTheDay(commands.Cog):
             else:
                 question_index = random.randrange(0, questions_len)
                 question = questions[question_index]
+
                 asked_by = await guild.fetch_member(question["asked_by"])
                 allowed_mentions = discord.AllowedMentions.none()
                 allowed_mentions.users = [asked_by]
-                message = await channel.send(
-                    f"**Question of the day:** "
-                    f"{question['question']}\n"
+
+                embed = discord.Embed(
+                    description=question["question"]
+                    + "\n"
                     + redbot.core.utils.chat_formatting.italics(
-                        "asked by " + asked_by.mention
+                        "asked by" + asked_by.mention
+                    )
+                )
+                embed.set_author(
+                    name="Question of the Day",
+                    icon_url=f"attachment://{ICON_PATH.name}",
+                )
+                footer = f"{questions_len - 1} questions left | "
+                suggestions_count = len(
+                    await self.config.guild(guild).suggested_questions()
+                )
+                footer += (
+                    f"{suggestions_count} suggestion{'s' if suggestions_count > 1 else ''}"
+                    if suggestions_count
+                    else "no suggestions yet! use qotd suggest"
+                )
+                embed.set_footer(text=footer)
+
+                message = await channel.send(
+                    embed=embed,
+                    file=discord.File(
+                        redbot.core.data_manager.bundled_data_path(self) / ICON_PATH,
+                        ICON_PATH.name,
                     ),
                     allowed_mentions=allowed_mentions,
                 )
+
                 del questions[question_index]
                 await self.manage_qotd_pins(message)
                 self.logger.info(f"Posted QOTD for guild {guild.name} ({guild.id}).")
