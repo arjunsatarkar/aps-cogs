@@ -10,6 +10,7 @@ import logging
 import pathlib
 import random
 import time
+import typing
 
 MAX_QUESTIONS_PER_GUILD = 1000
 MAX_QUESTION_SIZE = 500
@@ -266,20 +267,22 @@ class QuestionOfTheDay(commands.Cog):
 
     @qotd.command()
     @checks.admin_or_permissions(manage_server=True)
-    async def approve(self, ctx, suggestion_id: int):
+    async def approve(self, ctx, suggestion_id: int | typing.Literal["all"]):
         """
         Approve a suggestion using its id (see `qotd suggestions`).
 
         This adds the suggestion to the main queue.
         """
-        async with self.config.guild(
-            ctx.guild
-        ).suggested_questions() as suggested_questions:
+
+        async def approve_suggestion(
+            suggested_questions: list[dict], suggestion_id: int
+        ) -> str:
             try:
                 suggested_question = suggested_questions[suggestion_id - 1]
             except IndexError:
                 await ctx.reply(f"Error: no suggestion with id {suggestion_id}.")
                 return
+            approved_suggestion_text = suggested_question["question"]
             async with self.config.guild(ctx.guild).questions() as questions:
                 if len(questions) >= MAX_QUESTIONS_PER_GUILD:
                     await ctx.reply(
@@ -288,13 +291,24 @@ class QuestionOfTheDay(commands.Cog):
                 else:
                     questions.append(suggested_question)
                     del suggested_questions[suggestion_id - 1]
-                    await ctx.reply(
-                        f"Approved suggestion {suggestion_id}:\n"
-                        + redbot.core.utils.chat_formatting.quote(
-                            suggested_question["question"]
-                        ),
-                        allowed_mentions=discord.AllowedMentions.none(),
-                    )
+            return approved_suggestion_text
+
+        async with self.config.guild(
+            ctx.guild
+        ).suggested_questions() as suggested_questions:
+            if suggestion_id == "all":
+                for i in range(len(suggested_questions)):
+                    await approve_suggestion(suggested_questions, i)
+                await ctx.reply("Approved all suggestions!")
+            else:
+                approved_suggestion_text = await approve_suggestion(
+                    suggested_questions, suggestion_id
+                )
+                await ctx.reply(
+                    f"Approved suggestion {suggestion_id}:\n"
+                    + redbot.core.utils.chat_formatting.quote(approved_suggestion_text),
+                    allowed_mentions=discord.AllowedMentions.none(),
+                )
 
     @qotd.command()
     @checks.admin_or_permissions(manage_server=True)
@@ -332,7 +346,8 @@ class QuestionOfTheDay(commands.Cog):
                     description=question["question"]
                     + "\n"
                     + redbot.core.utils.chat_formatting.italics(
-                        "asked by " + (await guild.fetch_member(question["asked_by"])).mention
+                        "asked by "
+                        + (await guild.fetch_member(question["asked_by"])).mention
                     )
                 )
                 embed.set_author(
