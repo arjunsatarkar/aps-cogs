@@ -50,13 +50,14 @@ class QuestionOfTheDay(commands.Cog):
 
             for guild_id in guilds_due:
                 guild = await self.bot.fetch_guild(int(guild_id))
-                channel_id = await self.config.guild(guild).post_in_channel()
-                if not channel_id:
-                    self.logger.info(
-                        f"QOTD was due for guild {guild.name} ({guild_id}) but no channel was set, so it was not posted."
-                    )
-                channel = await guild.fetch_channel(channel_id)
-                await self.send_question_to_channel(channel)
+                if await self.config.guild(guild).enabled():
+                    channel_id = await self.config.guild(guild).post_in_channel()
+                    if not channel_id:
+                        self.logger.info(
+                            f"QOTD was due for guild {guild.name} ({guild_id}) but no channel was set, so it was not posted."
+                        )
+                    channel = await guild.fetch_channel(channel_id)
+                    await self.send_question_to_channel(channel)
 
         current_time = time.time()
 
