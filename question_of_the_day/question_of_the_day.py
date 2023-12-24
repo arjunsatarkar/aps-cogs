@@ -274,6 +274,8 @@ class QuestionOfTheDay(commands.Cog):
 
         This adds the suggestion to the main queue.
         """
+        REPEATABLE_ERROR_REPLIES_MAX = 2
+        repeatable_error_replies = 0
 
         async def approve_suggestion(
             suggested_questions: list[dict], suggestion_id: int
@@ -281,7 +283,13 @@ class QuestionOfTheDay(commands.Cog):
             try:
                 suggested_question = suggested_questions[suggestion_id - 1]
             except IndexError:
-                await ctx.reply(f"Error: no suggestion with id {suggestion_id}.")
+                nonlocal repeatable_error_replies
+                if repeatable_error_replies <= REPEATABLE_ERROR_REPLIES_MAX:
+                    repeatable_error_replies += 1
+                    error_message = f"Error: no suggestion with id {suggestion_id}."
+                    if repeatable_error_replies == REPEATABLE_ERROR_REPLIES_MAX:
+                        error_message += " Suppressing further instances of this error on this invocation."
+                    await ctx.reply(error_message)
                 return
             approved_suggestion_text = suggested_question["question"]
             async with self.config.guild(ctx.guild).questions() as questions:
@@ -298,7 +306,7 @@ class QuestionOfTheDay(commands.Cog):
             ctx.guild
         ).suggested_questions() as suggested_questions:
             if suggestion_id == "all":
-                for _ in range(len(suggested_questions)):
+                for _ in suggested_questions:
                     await approve_suggestion(suggested_questions, 1)
                 await ctx.reply("Approved all suggestions!")
             else:
