@@ -298,8 +298,8 @@ class QuestionOfTheDay(commands.Cog):
             ctx.guild
         ).suggested_questions() as suggested_questions:
             if suggestion_id == "all":
-                for i in range(len(suggested_questions)):
-                    await approve_suggestion(suggested_questions, i)
+                for _ in range(len(suggested_questions)):
+                    await approve_suggestion(suggested_questions, 1)
                 await ctx.reply("Approved all suggestions!")
             else:
                 approved_suggestion_text = await approve_suggestion(
