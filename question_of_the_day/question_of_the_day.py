@@ -399,10 +399,10 @@ class QuestionOfTheDay(commands.Cog):
                 channel = await guild.fetch_channel(
                     latest_qotd_message_info["channel_id"]
                 )
-                old_message = await channel.fetch_message(
-                    latest_qotd_message_info["message_id"]
-                )
                 try:
+                    old_message = await channel.fetch_message(
+                        latest_qotd_message_info["message_id"]
+                    )
                     await old_message.unpin(reason="Unpinning old question of the day.")
                 except (discord.Forbidden, discord.NotFound):
                     pass
