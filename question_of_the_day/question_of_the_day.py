@@ -102,7 +102,7 @@ class QuestionOfTheDay(commands.Cog):
         pass
 
     @qotd.command()
-    @commands.admin()
+    @commands.admin_or_permissions(manage_guild=True)
     async def add(self, ctx, *, question: str):
         """
         Add a question directly to the main queue (requires elevated permissions).
@@ -132,7 +132,7 @@ class QuestionOfTheDay(commands.Cog):
             await ctx.reply("No questions yet.")
 
     @qotd.command()
-    @commands.admin()
+    @commands.admin_or_permissions(manage_guild=True)
     async def remove(self, ctx, question_id: int):
         """
         Remove a question from the queue using its id (see `qotd list`).
@@ -145,7 +145,7 @@ class QuestionOfTheDay(commands.Cog):
                 await ctx.reply(f"Error: no question with id {question_id}.")
 
     @qotd.command()
-    @commands.admin()
+    @commands.admin_or_permissions(manage_guild=True)
     async def post(self, ctx):
         """
         Post a question immediately.
@@ -163,7 +163,7 @@ class QuestionOfTheDay(commands.Cog):
             )
 
     @qotd.command()
-    @commands.admin()
+    @commands.admin_or_permissions(manage_guild=True)
     async def post_at(self, ctx, hour_after_midnight_utc: int, minute_after_hour: int):
         """Set the time to post a QOTD every day in this server."""
         if (
@@ -200,7 +200,7 @@ class QuestionOfTheDay(commands.Cog):
             )
 
     @qotd.command()
-    @commands.admin()
+    @commands.admin_or_permissions(manage_guild=True)
     async def post_here(self, ctx):
         """
         Set the current channel as where QOTDs should be posted.
@@ -212,7 +212,7 @@ class QuestionOfTheDay(commands.Cog):
             await ctx.reply("Error: must use a text channel.")
 
     @qotd.command()
-    @commands.admin()
+    @commands.admin_or_permissions(manage_guild=True)
     async def toggle(self, ctx):
         """
         Turn on or off automatic posting of questions of the day in this server.
@@ -267,7 +267,7 @@ class QuestionOfTheDay(commands.Cog):
             await ctx.reply("No suggested questions yet.")
 
     @qotd.command()
-    @commands.admin()
+    @commands.admin_or_permissions(manage_guild=True)
     async def approve(self, ctx, suggestion_id: int | typing.Literal["all"]):
         """
         Approve a suggestion using its id (see `qotd suggestions`).
@@ -320,7 +320,7 @@ class QuestionOfTheDay(commands.Cog):
                 )
 
     @qotd.command()
-    @commands.admin()
+    @commands.admin_or_permissions(manage_guild=True)
     async def deny(self, ctx, suggestion_id: int):
         """
         Decline a suggestion and remove it from the suggestion queue.
