@@ -10,7 +10,7 @@ import pathlib
 import random
 import time
 import typing
-from errors import *
+from .errors import *
 
 MAX_QUESTIONS_PER_GUILD = 1000
 MAX_QUESTION_SIZE = 500
