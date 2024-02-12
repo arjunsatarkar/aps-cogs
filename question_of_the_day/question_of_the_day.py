@@ -295,7 +295,7 @@ class QuestionOfTheDay(commands.Cog):
             ctx.guild
         ).suggested_questions() as suggested_questions:
             if suggestion_id == "all":
-                for _ in suggested_questions:
+                for _ in range(len(suggested_questions)):
                     try:
                         await approve_suggestion(suggested_questions, 1)
                     except (NoSuchSuggestionError, QuestionLimitReachedError) as e:
