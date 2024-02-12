@@ -1,7 +1,6 @@
 import discord
 from discord.ext import tasks
 from redbot.core import Config
-from redbot.core import checks
 from redbot.core import commands
 import redbot.core
 import copy
@@ -11,6 +10,7 @@ import pathlib
 import random
 import time
 import typing
+from errors import *
 
 MAX_QUESTIONS_PER_GUILD = 1000
 MAX_QUESTION_SIZE = 500
@@ -274,8 +274,6 @@ class QuestionOfTheDay(commands.Cog):
 
         This adds the suggestion to the main queue.
         """
-        REPEATABLE_ERROR_REPLIES_MAX = 2
-        repeatable_error_replies = 0
 
         async def approve_suggestion(
             suggested_questions: list[dict], suggestion_id: int
@@ -283,20 +281,11 @@ class QuestionOfTheDay(commands.Cog):
             try:
                 suggested_question = suggested_questions[suggestion_id - 1]
             except IndexError:
-                nonlocal repeatable_error_replies
-                if repeatable_error_replies <= REPEATABLE_ERROR_REPLIES_MAX:
-                    repeatable_error_replies += 1
-                    error_message = f"Error: no suggestion with id {suggestion_id}."
-                    if repeatable_error_replies == REPEATABLE_ERROR_REPLIES_MAX:
-                        error_message += " Suppressing further instances of this error on this invocation."
-                    await ctx.reply(error_message)
-                return
+                raise NoSuchSuggestionError(suggestion_id)
             approved_suggestion_text = suggested_question["question"]
             async with self.config.guild(ctx.guild).questions() as questions:
                 if len(questions) >= MAX_QUESTIONS_PER_GUILD:
-                    await ctx.reply(
-                        f"Error: there are already {MAX_QUESTIONS_PER_GUILD} questions in the main queue; can't approve suggestion."
-                    )
+                    raise QuestionLimitReachedError
                 else:
                     questions.append(suggested_question)
                     del suggested_questions[suggestion_id - 1]
@@ -307,12 +296,20 @@ class QuestionOfTheDay(commands.Cog):
         ).suggested_questions() as suggested_questions:
             if suggestion_id == "all":
                 for _ in suggested_questions:
-                    await approve_suggestion(suggested_questions, 1)
+                    try:
+                        await approve_suggestion(suggested_questions, 1)
+                    except (NoSuchSuggestionError, QuestionLimitReachedError) as e:
+                        await ctx.reply(str(e))
+                        return
                 await ctx.reply("Approved all suggestions!")
             else:
-                approved_suggestion_text = await approve_suggestion(
-                    suggested_questions, suggestion_id
-                )
+                try:
+                    approved_suggestion_text = await approve_suggestion(
+                        suggested_questions, suggestion_id
+                    )
+                except (NoSuchSuggestionError, QuestionLimitReachedError) as e:
+                    await ctx.reply(str(e))
+                    return
                 await ctx.reply(
                     f"Approved suggestion {suggestion_id}:\n"
                     + redbot.core.utils.chat_formatting.quote(approved_suggestion_text),
