@@ -8,6 +8,7 @@ import random
 import re
 from .errors import *
 
+MAX_IGNORED_STRINGS_PER_GUILD = 50
 MAX_TOKEN_GENERATION_ITERATIONS = 1000
 MAX_WORD_LENGTH = 50
 
@@ -18,7 +19,7 @@ class Markov(commands.Cog):
         self.config = Config.get_conf(
             self, identifier="551742410770612234|085c218a-e850-4b07-9fc9-535c1b0d4c73"
         )
-        self.config.register_guild(use_messages=False)
+        self.config.register_guild(use_messages=False, ignored_strings=[])
         self.config.register_member(use_messages=True)
         self.config.register_channel(use_messages=False)
 
@@ -47,6 +48,10 @@ class Markov(commands.Cog):
         )
 
     async def process_message(self, clean_content: str, guild_id: int, member_id: int):
+        # Strip out ignored strings
+        for ignored_string in await self.config.guild_from_id(guild_id).ignored_strings():
+            clean_content = clean_content.replace(ignored_string, "")
+
         # Strip out URL-esque patterns - a run of characters without spaces that contains '://' within it
         clean_content = re.sub(r"(?: |^)\w+:\/\/[^ ]+(?: |$)", " ", clean_content)
 
@@ -193,6 +198,62 @@ class Markov(commands.Cog):
         await ctx.reply(
             f"The markov cog is now {'enabled' if new_state else 'disabled'} in this guild."
         )
+
+    @markov.group()
+    async def ignore_string(self, _ctx):
+        pass
+
+    @ignore_string.command()
+    @commands.admin_or_permissions(manage_guild=True)
+    async def add(self, ctx, *, ignored_string: str):
+        """
+        Replace every instance of this string with the empty string before further
+        processing a message. WARNING: this can mess up your tokenization if
+        misused. I recommend breaking on a word boundary.
+        """
+        if not ignored_string:
+            await ctx.reply("Error: ignored_string must have length greater than 0")
+            return
+        async with self.config.guild(ctx.guild).ignored_strings() as ignored_strings:
+            if len(ignored_strings) >= MAX_IGNORED_STRINGS_PER_GUILD:
+                await ctx.reply(
+                    "Error: you already have the maximum number of ignored strings in this guild"
+                    f" ({MAX_IGNORED_STRINGS_PER_GUILD})."
+                )
+                return
+            ignored_strings.append(ignored_string)
+        await ctx.reply(f"Added that to the excluded strings for this guild.")
+
+    @ignore_string.command()
+    @commands.admin_or_permissions(manage_guild=True)
+    async def remove(self, ctx, num: int):
+        """
+        Remove ignored string with ID num. You can see the IDs in `markov ignored_string list`.
+        """
+        async with self.config.guild(ctx.guild).ignored_strings() as ignored_strings:
+            string = ignored_strings[num - 1]
+            try:
+                del ignored_strings[num - 1]
+            except IndexError:
+                await ctx.reply("Error: no ignored string with that ID existed!")
+            else:
+                await ctx.reply(f"Removed {repr(string)} from your ignored strings.")
+
+    @ignore_string.command()
+    @commands.admin_or_permissions(manage_guild=True)
+    async def list(self, ctx):
+        text = ""
+        for i, question in enumerate(
+            await self.config.guild(ctx.guild).ignored_strings()
+        ):
+            text += f"{i + 1}. {question}\n"
+        pages = list(redbot.core.utils.chat_formatting.pagify(text))
+
+        if pages:
+            message = await ctx.reply(".")
+            await redbot.core.utils.menus.menu(ctx, pages, message=message)
+        else:
+            await ctx.reply("No ignored strings yet.")
 
     @markov.command()
     async def generate(self, ctx, member: discord.Member | None):
