@@ -34,6 +34,8 @@ class Markov(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message_without_command(self, message):
+        if message.guild is None:
+            return
         if not await self.config.guild(message.guild).use_messages():
             return
         if not await self.config.channel(message.channel).use_messages():
