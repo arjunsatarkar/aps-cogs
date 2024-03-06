@@ -196,6 +196,14 @@ class Markov(commands.Cog):
 
     @markov.command()
     async def generate(self, ctx, member: discord.Member | None):
+        if not await self.config.guild(ctx.guild).use_messages():
+            await ctx.reply("Not enabled in this guild.")
+            return
+        if member is not None:
+            if not await self.config.member(member).use_messages():
+                await ctx.reply("That member has opted out of markov generation.")
+                return
+
         # NOTE: if changing PUNCTUATION, also change the regex in process_message() with the corresponding note
         PUNCTUATION = ".,!?/"
         if member is None:
