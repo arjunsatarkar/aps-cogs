@@ -365,6 +365,7 @@ class Markov(commands.Cog):
                         )
                     completion_count = row[0]
 
+                    next_token = None
                     for i in range(MAX_TOKEN_GENERATION_ITERATIONS):
                         row = await (
                             await db.execute(
@@ -405,7 +406,10 @@ class Markov(commands.Cog):
                                 " all of them. This should never happen!"
                             )
                     else:
-                        token = ""
+                        # If we went through MAX_TOKEN_GENERATION_ITERATIONS completions
+                        # without selecting any, then just select the last one we considered
+                        # (round off the probability, effectively).
+                        token = next_token
 
                     if token == "":
                         break
