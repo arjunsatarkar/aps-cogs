@@ -8,7 +8,7 @@ import random
 import re
 from .errors import *
 
-MAX_IGNORED_STRINGS_PER_GUILD = 50
+MAX_BLACKLISTED_STRINGS_PER_GUILD = 50
 MAX_TOKEN_GENERATION_ITERATIONS = 1000
 MAX_WORD_LENGTH = 50
 
@@ -19,7 +19,7 @@ class Markov(commands.Cog):
         self.config = Config.get_conf(
             self, identifier="551742410770612234|085c218a-e850-4b07-9fc9-535c1b0d4c73"
         )
-        self.config.register_guild(use_messages=False, ignored_strings=[])
+        self.config.register_guild(use_messages=False, blacklisted_strings=[])
         self.config.register_member(use_messages=True)
         self.config.register_channel(use_messages=False)
 
@@ -50,9 +50,10 @@ class Markov(commands.Cog):
         )
 
     async def process_message(self, clean_content: str, guild_id: int, member_id: int):
-        # Strip out ignored strings
-        for ignored_string in await self.config.guild_from_id(guild_id).ignored_strings():
-            clean_content = clean_content.replace(ignored_string, "")
+        # Ignore messages with blacklisted strings
+        for blacklisted_string in await self.config.guild_from_id(guild_id).blacklisted_strings():
+            if blacklisted_string in clean_content:
+                return
 
         # Strip out URL-esque patterns - a run of characters without spaces that contains '://' within it
         clean_content = re.sub(r"(?: |^)\w+:\/\/[^ ]+(?: |$)", " ", clean_content)
@@ -202,51 +203,49 @@ class Markov(commands.Cog):
         )
 
     @markov.group()
-    async def ignore_string(self, _ctx):
+    async def blacklist_string(self, _ctx):
         pass
 
-    @ignore_string.command()
+    @blacklist_string.command()
     @commands.admin_or_permissions(manage_guild=True)
-    async def add(self, ctx, *, ignored_string: str):
+    async def add(self, ctx, *, blacklisted_string: str):
         """
-        Replace every instance of this string with the empty string before further
-        processing a message. WARNING: this can mess up your tokenization if
-        misused. I recommend breaking on a word boundary.
+        Exclude every message containing this string from processing.
         """
-        if not ignored_string:
-            await ctx.reply("Error: ignored_string must have length greater than 0")
+        if not blacklisted_string:
+            await ctx.reply("Error: blacklisted_string must have length greater than 0")
             return
-        async with self.config.guild(ctx.guild).ignored_strings() as ignored_strings:
-            if len(ignored_strings) >= MAX_IGNORED_STRINGS_PER_GUILD:
+        async with self.config.guild(ctx.guild).blacklisted_strings() as blacklisted_strings:
+            if len(blacklisted_strings) >= MAX_BLACKLISTED_STRINGS_PER_GUILD:
                 await ctx.reply(
-                    "Error: you already have the maximum number of ignored strings in this guild"
-                    f" ({MAX_IGNORED_STRINGS_PER_GUILD})."
+                    "Error: you already have the maximum number of blacklisted strings in this guild"
+                    f" ({MAX_BLACKLISTED_STRINGS_PER_GUILD})."
                 )
                 return
-            ignored_strings.append(ignored_string)
-        await ctx.reply(f"Added that to the excluded strings for this guild.")
+            blacklisted_strings.append(blacklisted_string)
+        await ctx.reply(f"Added that to the blacklisted strings for this guild.")
 
-    @ignore_string.command()
+    @blacklist_string.command()
     @commands.admin_or_permissions(manage_guild=True)
     async def remove(self, ctx, num: int):
         """
-        Remove ignored string with ID num. You can see the IDs in `markov ignored_string list`.
+        Remove blacklisted string with ID num. You can see the IDs in `markov blacklisted_string list`.
         """
-        async with self.config.guild(ctx.guild).ignored_strings() as ignored_strings:
-            string = ignored_strings[num - 1]
+        async with self.config.guild(ctx.guild).blacklisted_strings() as blacklisted_strings:
+            string = blacklisted_strings[num - 1]
             try:
-                del ignored_strings[num - 1]
+                del blacklisted_strings[num - 1]
             except IndexError:
-                await ctx.reply("Error: no ignored string with that ID existed!")
+                await ctx.reply("Error: no blacklisted string with that ID exists.")
             else:
-                await ctx.reply(f"Removed {repr(string)} from your ignored strings.")
+                await ctx.reply(f"Removed {repr(string)} from your blacklisted strings.")
 
-    @ignore_string.command()
+    @blacklist_string.command()
     @commands.admin_or_permissions(manage_guild=True)
     async def list(self, ctx):
         text = ""
         for i, question in enumerate(
-            await self.config.guild(ctx.guild).ignored_strings()
+            await self.config.guild(ctx.guild).blacklisted_strings()
         ):
             text += f"{i + 1}. {repr(question)}\n"
         pages = list(redbot.core.utils.chat_formatting.pagify(text))
@@ -255,7 +254,7 @@ class Markov(commands.Cog):
             message = await ctx.reply(".")
             await redbot.core.utils.menus.menu(ctx, pages, message=message)
         else:
-            await ctx.reply("No ignored strings yet.")
+            await ctx.reply("No blacklisted strings yet.")
 
     @markov.command()
     async def generate(self, ctx, member: discord.Member | None):
