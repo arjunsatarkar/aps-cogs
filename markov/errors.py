@@ -1,0 +1,2 @@
+class MarkovGenerationError(Exception):
+    pass
