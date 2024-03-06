@@ -51,7 +51,9 @@ class Markov(commands.Cog):
 
     async def process_message(self, clean_content: str, guild_id: int, member_id: int):
         # Ignore messages with blacklisted strings
-        for blacklisted_string in await self.config.guild_from_id(guild_id).blacklisted_strings():
+        for blacklisted_string in await self.config.guild_from_id(
+            guild_id
+        ).blacklisted_strings():
             if blacklisted_string in clean_content:
                 return
 
@@ -215,7 +217,9 @@ class Markov(commands.Cog):
         if not blacklisted_string:
             await ctx.reply("Error: blacklisted_string must have length greater than 0")
             return
-        async with self.config.guild(ctx.guild).blacklisted_strings() as blacklisted_strings:
+        async with self.config.guild(
+            ctx.guild
+        ).blacklisted_strings() as blacklisted_strings:
             if len(blacklisted_strings) >= MAX_BLACKLISTED_STRINGS_PER_GUILD:
                 await ctx.reply(
                     "Error: you already have the maximum number of blacklisted strings in this guild"
@@ -231,14 +235,18 @@ class Markov(commands.Cog):
         """
         Remove blacklisted string with ID num. You can see the IDs in `markov blacklisted_string list`.
         """
-        async with self.config.guild(ctx.guild).blacklisted_strings() as blacklisted_strings:
+        async with self.config.guild(
+            ctx.guild
+        ).blacklisted_strings() as blacklisted_strings:
             string = blacklisted_strings[num - 1]
             try:
                 del blacklisted_strings[num - 1]
             except IndexError:
                 await ctx.reply("Error: no blacklisted string with that ID exists.")
             else:
-                await ctx.reply(f"Removed {repr(string)} from your blacklisted strings.")
+                await ctx.reply(
+                    f"Removed {repr(string)} from your blacklisted strings."
+                )
 
     @blacklist_string.command()
     @commands.admin_or_permissions(manage_guild=True)
@@ -329,7 +337,7 @@ class Markov(commands.Cog):
 
                     if token == "":
                         break
-            await ctx.reply(result, allowed_mentions=discord.AllowedMentions.none())
+            await ctx.send(result, allowed_mentions=discord.AllowedMentions.none())
         else:
             result = ""
             token = ""
@@ -401,4 +409,4 @@ class Markov(commands.Cog):
 
                     if token == "":
                         break
-            await ctx.reply(result, allowed_mentions=discord.AllowedMentions.none())
+            await ctx.send(result, allowed_mentions=discord.AllowedMentions.none())
