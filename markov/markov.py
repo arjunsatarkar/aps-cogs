@@ -246,7 +246,7 @@ class Markov(commands.Cog):
         for i, question in enumerate(
             await self.config.guild(ctx.guild).ignored_strings()
         ):
-            text += f"{i + 1}. {question}\n"
+            text += f"{i + 1}. {repr(question)}\n"
         pages = list(redbot.core.utils.chat_formatting.pagify(text))
 
         if pages:
