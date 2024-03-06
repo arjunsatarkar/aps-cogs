@@ -55,7 +55,7 @@ class Markov(commands.Cog):
         tokens = (
             [""]
             + [
-                word.lower()
+                word
                 for word in re.findall(r"[\w']+|[\.,!?\/]", clean_content)
                 if len(word) <= MAX_WORD_LENGTH
             ]
