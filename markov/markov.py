@@ -6,6 +6,7 @@ from redbot.core import commands
 import math
 import random
 import re
+import unicodedata
 from .errors import *
 
 MAX_BLACKLISTED_STRINGS_PER_GUILD = 50
@@ -50,6 +51,10 @@ class Markov(commands.Cog):
         )
 
     async def process_message(self, clean_content: str, guild_id: int, member_id: int):
+        # Normalize
+        clean_content = unicodedata.normalize("NFKC", clean_content)
+        clean_content = clean_content.replace("’", "'")
+
         # Ignore messages with blacklisted strings
         for blacklisted_string in await self.config.guild_from_id(
             guild_id
