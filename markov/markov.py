@@ -3,15 +3,21 @@ import discord
 import redbot.core
 from redbot.core import Config
 from redbot.core import commands
+import enum
 import math
 import random
 import re
 import unicodedata
 from .errors import *
 
-MAX_BLACKLISTED_STRINGS_PER_GUILD = 50
+MAX_EXCLUSIONS_PER_GUILD = 50
 MAX_TOKEN_GENERATION_ITERATIONS = 1000
 MAX_TOKEN_LENGTH = 70
+
+
+class ExclusionType(enum.Enum):
+    BLACKLIST = enum.auto()
+    IGNORE = enum.auto()
 
 
 class Markov(commands.Cog):
@@ -20,7 +26,9 @@ class Markov(commands.Cog):
         self.config = Config.get_conf(
             self, identifier="551742410770612234|085c218a-e850-4b07-9fc9-535c1b0d4c73"
         )
-        self.config.register_guild(use_messages=False, blacklisted_strings=[])
+        self.config.register_guild(
+            use_messages=False, blacklisted_strings=[], ignored_strings=[]
+        )
         self.config.register_member(use_messages=True)
         self.config.register_channel(use_messages=False)
 
@@ -46,33 +54,39 @@ class Markov(commands.Cog):
         if message.author.id == self.bot.user.id:
             return
 
-        await self.process_message(
-            message.clean_content, message.guild.id, message.author.id
-        )
+        await self.process_message(message.content, message.guild.id, message.author.id)
 
-    async def process_message(self, clean_content: str, guild_id: int, member_id: int):
+    async def process_message(self, content: str, guild_id: int, member_id: int):
         # Normalize
-        clean_content = unicodedata.normalize("NFKC", clean_content)
-        clean_content = clean_content.replace("’", "'")
+        content = unicodedata.normalize("NFKC", content)
+        content = content.replace("’", "'")
 
         # Ignore messages with blacklisted strings
         for blacklisted_string in await self.config.guild_from_id(
             guild_id
         ).blacklisted_strings():
-            if blacklisted_string in clean_content:
+            if blacklisted_string in content:
                 return
 
-        # Strip out URL-esque patterns - a run of characters without spaces that contains '://' within it
-        clean_content = re.sub(r"(?: |^)\w+:\/\/[^ ]+(?: |$)", " ", clean_content)
+        # Strip out ignored strings
+        for ignored_string in await self.config.guild_from_id(
+            guild_id
+        ).ignored_strings():
+            content = content.replace(ignored_string, "")
 
-        # Extract words, punctuation, and custom emoji as individual
-        # tokens, then add sentinel (empty string) on either end.
+        # Strip out URL-esque patterns - a run of characters without spaces that contains '://' within it
+        content = re.sub(r"(?: |^)\w+:\/\/[^ ]+(?: |$)", " ", content)
+
+        # Extract words, punctuation, custom emoji, and mentions as
+        # individual tokens, then add a sentinel (empty string) on either end.
         # NOTE: if changing the punctuation in the regex, also change PUNCTUATION in generate()
         tokens = (
             [""]
             + [
                 token
-                for token in re.findall(r"[\w']+|[\.,!?\/]|<:\w+:\d+>", clean_content)
+                for token in re.findall(
+                    r"[\w']+|[\.,!?\/]|<:\w+:\d+>|<#\d+>|<@\d+>", content
+                )
                 if len(token) <= MAX_TOKEN_LENGTH
             ]
             + [""]
@@ -210,65 +224,122 @@ class Markov(commands.Cog):
             f"The markov cog is now {'enabled' if new_state else 'disabled'} in this guild."
         )
 
+    async def exclusion_get_config_value(self, ctx, exclusion_type: ExclusionType):
+        config_value = None
+        match exclusion_type:
+            case ExclusionType.BLACKLIST:
+                config_value = self.config.guild(ctx.guild).blacklisted_strings()
+            case ExclusionType.IGNORE:
+                config_value = self.config.guild(ctx.guild).ignored_strings()
+            case _:
+                raise ValueError(
+                    "exclusion_type must be one of ExclusionType.BLACKLIST,"
+                    f" ExclusionType.IGNORE (got {exclusion_type})"
+                )
+        return config_value
+
+    async def exclusion_add(self, ctx, exclusion_type: ExclusionType, string: str):
+        if not string:
+            await ctx.reply("Error: the string must have length greater than 0.")
+            return
+
+        config_value = await self.exclusion_get_config_value(ctx, exclusion_type)
+
+        async with config_value as exclusion_list:
+            if len(exclusion_list) >= MAX_EXCLUSIONS_PER_GUILD:
+                await ctx.reply(
+                    "Error: the maximum number of exclusions of this type has already been reached"
+                    f" ({MAX_EXCLUSIONS_PER_GUILD})."
+                )
+                return
+            exclusion_list.append(string)
+        await ctx.react_quietly("✅")
+
+    async def exclusion_remove(self, ctx, exclusion_type: ExclusionType, num: int):
+        config_value = await self.exclusion_get_config_value(ctx, exclusion_type)
+
+        async with config_value as exclusion_list:
+            try:
+                string = exclusion_list[num - 1]
+                del exclusion_list[num - 1]
+            except IndexError:
+                await ctx.reply("Error: invalid or nonexistent ID.")
+            else:
+                await ctx.react_quietly("✅")
+
+    async def exclusion_list(self, ctx, exclusion_type: ExclusionType):
+        config_value = await self.exclusion_get_config_value(ctx, exclusion_type)
+
+        text = ""
+        for i, string in enumerate(await config_value):
+            text += f"{i + 1}. {repr(string)}\n"
+        pages = list(redbot.core.utils.chat_formatting.pagify(text))
+
+        if pages:
+            message = await ctx.reply(
+                ".", allowed_mentions=discord.AllowedMentions.none()
+            )
+            await redbot.core.utils.menus.menu(ctx, pages, message=message)
+        else:
+            await ctx.reply("No results.")
+
     @markov.group()
     async def blacklist_string(self, _ctx):
         pass
 
-    @blacklist_string.command()
+    @blacklist_string.command(name="add")
     @commands.admin_or_permissions(manage_guild=True)
-    async def add(self, ctx, *, blacklisted_string: str):
+    async def blacklist_string_add(self, ctx, *, blacklisted_string: str):
         """
         Exclude every message containing this string from processing.
         """
-        if not blacklisted_string:
-            await ctx.reply("Error: blacklisted_string must have length greater than 0")
-            return
-        async with self.config.guild(
-            ctx.guild
-        ).blacklisted_strings() as blacklisted_strings:
-            if len(blacklisted_strings) >= MAX_BLACKLISTED_STRINGS_PER_GUILD:
-                await ctx.reply(
-                    "Error: you already have the maximum number of blacklisted strings in this guild"
-                    f" ({MAX_BLACKLISTED_STRINGS_PER_GUILD})."
-                )
-                return
-            blacklisted_strings.append(blacklisted_string)
-        await ctx.reply(f"Added that to the blacklisted strings for this guild.")
+        await self.exclusion_add(ctx, ExclusionType.BLACKLIST, blacklisted_string)
 
-    @blacklist_string.command()
+    @blacklist_string.command(name="remove")
     @commands.admin_or_permissions(manage_guild=True)
-    async def remove(self, ctx, num: int):
+    async def blacklist_string_remove(self, ctx, num: int):
         """
         Remove blacklisted string with ID num. You can see the IDs in `markov blacklisted_string list`.
         """
-        async with self.config.guild(
-            ctx.guild
-        ).blacklisted_strings() as blacklisted_strings:
-            string = blacklisted_strings[num - 1]
-            try:
-                del blacklisted_strings[num - 1]
-            except IndexError:
-                await ctx.reply("Error: no blacklisted string with that ID exists.")
-            else:
-                await ctx.reply(
-                    f"Removed {repr(string)} from your blacklisted strings."
-                )
+        await self.exclusion_remove(ctx, ExclusionType.BLACKLIST, num)
 
-    @blacklist_string.command()
+    @blacklist_string.command(name="list")
     @commands.admin_or_permissions(manage_guild=True)
-    async def list(self, ctx):
-        text = ""
-        for i, question in enumerate(
-            await self.config.guild(ctx.guild).blacklisted_strings()
-        ):
-            text += f"{i + 1}. {repr(question)}\n"
-        pages = list(redbot.core.utils.chat_formatting.pagify(text))
+    async def blacklist_string_list(self, ctx):
+        """
+        List all blacklisted strings.
+        """
+        await self.exclusion_list(ctx, ExclusionType.BLACKLIST)
 
-        if pages:
-            message = await ctx.reply(".")
-            await redbot.core.utils.menus.menu(ctx, pages, message=message)
-        else:
-            await ctx.reply("No blacklisted strings yet.")
+    @markov.group()
+    async def ignore_string(self, _ctx):
+        pass
+
+    @ignore_string.command(name="add")
+    @commands.admin_or_permissions(manage_guild=True)
+    async def ignore_string_add(self, ctx, *, ignored_string: str):
+        """
+        Strip out ignored_string from message content before processing.
+        Improper use of this can mess up your tokenization. Breaking your
+        exclusion at word boundaries is recommended.
+        """
+        await self.exclusion_add(ctx, ExclusionType.IGNORE, ignored_string)
+
+    @ignore_string.command(name="remove")
+    @commands.admin_or_permissions(manage_guild=True)
+    async def ignore_string_remove(self, ctx, num: int):
+        """
+        Remove ignored string with ID num. You can see the IDs in `markov ignored_string list`.
+        """
+        await self.exclusion_remove(ctx, ExclusionType.IGNORE, num)
+
+    @ignore_string.command(name="list")
+    @commands.admin_or_permissions(manage_guild=True)
+    async def ignore_string_list(self, ctx):
+        """
+        List all ignored strings.
+        """
+        await self.exclusion_list(ctx, ExclusionType.IGNORE)
 
     @markov.command()
     async def generate(self, ctx, member: discord.Member | None):
