@@ -10,7 +10,7 @@ from .errors import *
 
 MAX_BLACKLISTED_STRINGS_PER_GUILD = 50
 MAX_TOKEN_GENERATION_ITERATIONS = 1000
-MAX_WORD_LENGTH = 50
+MAX_TOKEN_LENGTH = 70
 
 
 class Markov(commands.Cog):
@@ -60,14 +60,15 @@ class Markov(commands.Cog):
         # Strip out URL-esque patterns - a run of characters without spaces that contains '://' within it
         clean_content = re.sub(r"(?: |^)\w+:\/\/[^ ]+(?: |$)", " ", clean_content)
 
-        # Extract words and punctuation, normalize to lowercase, add sentinel (empty string) on either end
-        # NOTE: if changing the punctuation in the regex, also changing PUNCTUATION in generate()
+        # Extract words, punctuation, and custom emoji as individual
+        # tokens, then add sentinel (empty string) on either end.
+        # NOTE: if changing the punctuation in the regex, also change PUNCTUATION in generate()
         tokens = (
             [""]
             + [
-                word
-                for word in re.findall(r"[\w']+|[\.,!?\/]", clean_content)
-                if len(word) <= MAX_WORD_LENGTH
+                token
+                for token in re.findall(r"[\w']+|[\.,!?\/]|<:\w+:\d+>", clean_content)
+                if len(token) <= MAX_TOKEN_LENGTH
             ]
             + [""]
         )
