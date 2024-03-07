@@ -45,12 +45,18 @@ class Markov(commands.Cog):
     async def on_message_without_command(self, message):
         if message.guild is None:
             return
+
         if not await self.config.guild(message.guild).use_messages():
             return
-        if not await self.config.channel(message.channel).use_messages():
+
+        if not await self.config.channel(
+            self.get_base_channel(message.channel)
+        ).use_messages():
             return
+
         if not await self.config.member(message.author).use_messages():
             return
+
         if message.author.id == self.bot.user.id:
             return
 
@@ -146,6 +152,11 @@ class Markov(commands.Cog):
             raise ValueError(f"x must be non-negative (got {x})")
         return x.to_bytes(math.ceil(x.bit_length() / 8), byteorder="big", signed=False)
 
+    def get_base_channel(self, channel_or_thread):
+        if isinstance(channel_or_thread, discord.Thread):
+            return channel_or_thread.parent
+        return channel_or_thread
+
     @commands.group()
     async def markov(self, _ctx):
         """
@@ -182,7 +193,7 @@ class Markov(commands.Cog):
         Enable/disable processing in this channel (must be enabled for the guild
         using toggle_guild as well).
         """
-        channel_conf = self.config.channel(ctx.channel)
+        channel_conf = self.config.channel(self.get_base_channel(ctx.channel))
         new_state = not (await channel_conf.use_messages())
         await channel_conf.use_messages.set(new_state)
         await ctx.reply(
