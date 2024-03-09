@@ -418,7 +418,7 @@ class QuestionOfTheDay(commands.Cog):
                     "\n".join(
                         [
                             f"{i + 1}. {redbot.core.utils.chat_formatting.bold(question['question'])} by "
-                            + (await ctx.guild.fetch_member(question["asked_by"])).name
+                            + (ctx.guild.get_member(question["asked_by"])).name
                             + f" ({question['asked_by']})"
                             for i, question in enumerate(questions)
                         ]
