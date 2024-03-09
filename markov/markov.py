@@ -404,7 +404,9 @@ class Markov(commands.Cog):
                         next_token, frequency = row
 
                         if random.randint(1, completion_count) <= frequency:
-                            if next_token in PUNCTUATION:
+                            if next_token == "/":
+                                result = result[:-1] + next_token
+                            elif next_token in PUNCTUATION:
                                 result = result[:-1] + next_token + " "
                             else:
                                 result += next_token + " "
