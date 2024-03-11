@@ -47,13 +47,15 @@ class SimpleStarboard(commands.Cog):
                 },
             }
 
-            wait_message_id = await ctx.reply(
-                f"Creating starboard ``{name}`` posting to {channel.mention} requiring {threshold} reactions."
-                "\nReact to this message with all reactions you want the bot to consider for this starboard,"
-                " then send DONE, or else type ANY to check for all reactions. If you don't react, ⭐ will"
-                " be chosen by default.",
-                allowed_mentions=discord.AllowedMentions.none(),
-            )
+            wait_message_id = (
+                await ctx.reply(
+                    f"Creating starboard ``{name}`` posting to {channel.mention} requiring {threshold} reactions."
+                    "\nReact to this message with all reactions you want the bot to consider for this starboard,"
+                    " then send DONE, or else type ANY to check for all reactions. If you don't react, ⭐ will"
+                    " be chosen by default.",
+                    allowed_mentions=discord.AllowedMentions.none(),
+                )
+            ).id
 
             try:
                 done_message = await self.bot.wait_for(
@@ -78,6 +80,7 @@ class SimpleStarboard(commands.Cog):
                     ).reactions
                     if not reactions:
                         starboards[name]["reactions"]["unicode"]["⭐"] = 1
+                        emoji_text_list.append("⭐")
                     else:
                         for reaction in reactions:
                             emoji = reaction.emoji
@@ -89,7 +92,7 @@ class SimpleStarboard(commands.Cog):
                 case "any":
                     starboards[name]["allow_all_reactions"] = True
 
-        confirmation_text = f"Created starboard ``{name}`` posting to {channel} and requiring {threshold}"
+        confirmation_text = f"Created starboard ``{name}`` posting to {channel.mention} and requiring {threshold}"
         if not emoji_text_list:
             confirmation_text += " of any emoji."
         else:
@@ -117,29 +120,24 @@ class SimpleStarboard(commands.Cog):
         list_text = "Name, Channel, Threshold, Reactions"
         for name in starboards:
             starboard = starboards[name]
-            list_text.append(
-                f"\n* ``{name}``, {ctx.guild.get_channel(starboard['channel_id'])},"
+            list_text += (
+                f"\n* ``{name}``, {ctx.guild.get_channel(starboard['channel_id']).mention},"
                 f" {starboard['threshold']}, "
             )
             if starboard["allow_all_reactions"]:
-                list_text.append("*any*")
+                list_text += "*any*"
             else:
                 emoji_list = []
-                for emoji in (
-                    starboard["reactions"]["custom"] + starboard["reactions"]["unicode"]
-                ):
+                for emoji in starboard["reactions"]["custom"]:
                     emoji_list.append(
-                        self.emoji_as_sendable_text(self.bot.get_emoji(emoji))
+                        self.emoji_as_sendable_text(self.bot.get_emoji(int(emoji)))
                     )
-                list_text.append(
-                    redbot.core.utils.chat_formatting.humanize_list(emoji_list)
-                )
+                for emoji in starboard["reactions"]["unicode"]:
+                    emoji_list.append(emoji)
+                list_text += redbot.core.utils.chat_formatting.humanize_list(emoji_list)
         pages = [
             *redbot.core.utils.chat_formatting.pagify(
                 discord.utils.escape_mentions(list_text)
             )
         ]
-        if pages:
-            await redbot.core.utils.menus.menu(ctx, pages)
-        else:
-            await ctx.reply("No starboards.")
+        await redbot.core.utils.menus.menu(ctx, pages)
