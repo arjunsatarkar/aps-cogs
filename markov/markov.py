@@ -286,7 +286,7 @@ class Markov(commands.Cog):
             text += f"{i + 1}. {repr(string)}\n"
         pages = list(
             redbot.core.utils.chat_formatting.pagify(
-                discord.utils.escape_mentions(text)
+                discord.utils.escape_markdown(discord.utils.escape_mentions(text))
             )
         )
 
