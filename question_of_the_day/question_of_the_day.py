@@ -412,9 +412,8 @@ class QuestionOfTheDay(commands.Cog):
 
     async def paginate_questions(self, ctx, questions: list):
         return [
-            x
-            for x in redbot.core.utils.chat_formatting.pagify(
-                redbot.core.utils.common_filters.filter_various_mentions(
+            *redbot.core.utils.chat_formatting.pagify(
+                discord.utils.escape_mentions(
                     "\n".join(
                         [
                             f"{i + 1}. {redbot.core.utils.chat_formatting.bold(question['question'])} by "

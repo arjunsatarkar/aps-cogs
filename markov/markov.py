@@ -284,13 +284,14 @@ class Markov(commands.Cog):
         text = ""
         for i, string in enumerate(await config_value):
             text += f"{i + 1}. {repr(string)}\n"
-        pages = list(redbot.core.utils.chat_formatting.pagify(text))
+        pages = list(
+            redbot.core.utils.chat_formatting.pagify(
+                discord.utils.escape_mentions(text)
+            )
+        )
 
         if pages:
-            message = await ctx.reply(
-                ".", allowed_mentions=discord.AllowedMentions.none()
-            )
-            await redbot.core.utils.menus.menu(ctx, pages, message=message)
+            await redbot.core.utils.menus.menu(ctx, pages)
         else:
             await ctx.reply("No results.")
 

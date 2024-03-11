@@ -1,1 +1,3 @@
 = aps-cogs
+
+My cogs for the https://docs.discord.red/en/stable/[Red] self-hosted https://discord.com/[Discord] bot.
