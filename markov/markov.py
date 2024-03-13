@@ -364,22 +364,23 @@ class Markov(commands.Cog):
                 " if you are sure."
             )
             return
+        guild_id_bytes = self.uint_to_bytes(ctx.guild.id)
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute(
                 "DELETE FROM guild_total_completion_count WHERE guild_id = ?;",
-                (self.uint_to_bytes(ctx.guild.id),),
+                (guild_id_bytes,),
             )
             await db.execute(
                 "DELETE FROM guild_pairs WHERE guild_id = ?;",
-                (self.uint_to_bytes(ctx.guild.id),),
+                (guild_id_bytes,),
             )
             await db.execute(
                 "DELETE FROM member_total_completion_count WHERE guild_id = ?;",
-                (self.uint_to_bytes(ctx.guild.id),),
+                (guild_id_bytes,),
             )
             await db.execute(
                 "DELETE FROM member_pairs WHERE guild_id = ?;",
-                (self.uint_to_bytes(ctx.guild.id),),
+                (guild_id_bytes,),
             )
             await db.commit()
         await ctx.reply("All markov data for this guild has been deleted.")
@@ -473,31 +474,14 @@ class Markov(commands.Cog):
                             f"Error: no data for this {'member' if member else 'guild'} yet!"
                         )
                         return
-                    raise NoTotalCompletionCountError(
-                        repr(
-                            {
-                                "guild_id": ctx.guild.id,
-                                "member_id": member_id,
-                                "token": token,
-                            }
-                        )
-                    )
+                    raise NoTotalCompletionCountError(ctx.guild.id, member_id, token)
                 next_token = None
                 for i in range(MAX_TOKEN_GENERATION_ITERATIONS):
                     next_token, frequency = await get_possible_next_token(
                         db, ctx.guild.id, member_id, token, i
                     )
                     if next_token is None:
-                        raise NoNextTokenError(
-                            repr(
-                                {
-                                    "guild_id": ctx.guild.id,
-                                    "member_id": member_id,
-                                    "token": token,
-                                    "offset": i,
-                                }
-                            )
-                        )
+                        raise NoNextTokenError(ctx.guild.id, member_id, token, i)
                     if random.randint(1, completion_count) <= frequency:
                         if next_token == "/":
                             result = result[:-1] + next_token
@@ -511,14 +495,7 @@ class Markov(commands.Cog):
                     completion_count -= frequency
                     if completion_count <= 0:
                         raise InvalidCompletionCountError(
-                            repr(
-                                {
-                                    "guild_id": ctx.guild.id,
-                                    "member_id": member_id,
-                                    "token": token,
-                                    "offset": i,
-                                }
-                            )
+                            ctx.guild.id, member_id, token, i
                         )
                 else:
                     # If we went through MAX_TOKEN_GENERATION_ITERATIONS completions
