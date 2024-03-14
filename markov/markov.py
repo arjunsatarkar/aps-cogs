@@ -92,7 +92,7 @@ class Markov(commands.Cog):
             + [
                 token
                 for token in re.findall(
-                    r"[\w']+|[\.,!?\/]|<:\w+:\d+>|<#\d+>|<@\d+>", content
+                    r"[\w']+|[\.,!?\/;]|<:\w+:\d+>|<#\d+>|<@\d+>", content
                 )
                 if len(token) <= MAX_TOKEN_LENGTH
             ]
@@ -459,7 +459,7 @@ class Markov(commands.Cog):
             return next_token, frequency
 
         # NOTE: if changing PUNCTUATION, also change the regex in process_message() with the corresponding note
-        PUNCTUATION = ".,!?/"
+        PUNCTUATION = r".,!?/;"
         member_id = member.id if member else None
         result = ""
         token = ""
