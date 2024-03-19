@@ -2,5 +2,5 @@
     "author": ["Arjun Satarkar"],
     "description": "Use Markov chains to mimic users or the server as a whole.",
     "short": "Markov chains based on message content.",
-    "requirements": ["aiosqlite"]
+    "requirements": ["aiosqlite", "more-itertools"]
 }

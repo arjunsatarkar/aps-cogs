@@ -86,13 +86,13 @@ class Markov(commands.Cog):
 
         # Extract words, punctuation, custom emoji, and mentions as
         # individual tokens, then add a sentinel (empty string) on either end.
-        # NOTE: if changing the punctuation in the regex, also change PUNCTUATION in generate()
+        # NOTE: if changing the punctuation in the regex, also change PUNCTUATION in append_token()
         tokens = (
             [""]
             + [
                 token
                 for token in re.findall(
-                    r"[\w']+|[\.,!?\/;]|<a?:\w+:\d+>|<#\d+>|<@!?\d+>", content
+                    r"[\w']+|[\.,!?\/;\(\)]|<a?:\w+:\d+>|<#\d+>|<@!?\d+>", content
                 )
                 if len(token) <= MAX_TOKEN_LENGTH
             ]
@@ -385,6 +385,19 @@ class Markov(commands.Cog):
             await db.commit()
         await ctx.reply("All markov data for this guild has been deleted.")
 
+    def append_token(self, text, token):
+        # NOTE: if changing PUNCTUATION, also change the regex in process_message() with the corresponding note
+        PUNCTUATION = r".,!?/;()"
+        if token == "/":
+            text = text[:-1] + token
+        elif token == "(":
+            text += token
+        elif token in PUNCTUATION:
+            text = text[:-1] + token + " "
+        else:
+            text += token + " "
+        return text
+
     @markov.command()
     async def generate(self, ctx, member: discord.Member | None):
         if not await self.config.guild(ctx.guild).use_messages():
@@ -458,8 +471,6 @@ class Markov(commands.Cog):
             next_token, frequency = row
             return next_token, frequency
 
-        # NOTE: if changing PUNCTUATION, also change the regex in process_message() with the corresponding note
-        PUNCTUATION = r".,!?/;"
         member_id = member.id if member else None
         result = ""
         token = ""
@@ -483,12 +494,7 @@ class Markov(commands.Cog):
                     if next_token is None:
                         raise NoNextTokenError(ctx.guild.id, member_id, token, i)
                     if random.randint(1, completion_count) <= frequency:
-                        if next_token == "/":
-                            result = result[:-1] + next_token
-                        elif next_token in PUNCTUATION:
-                            result = result[:-1] + next_token + " "
-                        else:
-                            result += next_token + " "
+                        result = self.append_token(result, next_token)
                         token = next_token
                         break
 
