@@ -151,12 +151,28 @@ class Markov(commands.Cog):
     def uint_to_bytes(self, x: int):
         if x < 0:
             raise ValueError(f"x must be non-negative (got {x})")
-        return x.to_bytes(math.ceil(x.bit_length() / 8), byteorder="big", signed=False)
+        byte_length, remainder = divmod(x.bit_length(), 8)
+        if remainder:
+            byte_length += 1
+        return x.to_bytes(byte_length, byteorder="big", signed=False)
 
     def get_base_channel(self, channel_or_thread):
         if isinstance(channel_or_thread, discord.Thread):
             return channel_or_thread.parent
         return channel_or_thread
+
+    def append_token(self, text, token):
+        # NOTE: if changing PUNCTUATION, also change the regex in process_message() with the corresponding note
+        PUNCTUATION = r".,!?/;()"
+        if token == "/":
+            text = text[:-1] + token
+        elif token == "(":
+            text += token
+        elif token in PUNCTUATION:
+            text = text[:-1] + token + " "
+        else:
+            text += token + " "
+        return text
 
     @commands.group()
     async def markov(self, _ctx):
@@ -384,19 +400,6 @@ class Markov(commands.Cog):
             )
             await db.commit()
         await ctx.reply("All markov data for this guild has been deleted.")
-
-    def append_token(self, text, token):
-        # NOTE: if changing PUNCTUATION, also change the regex in process_message() with the corresponding note
-        PUNCTUATION = r".,!?/;()"
-        if token == "/":
-            text = text[:-1] + token
-        elif token == "(":
-            text += token
-        elif token in PUNCTUATION:
-            text = text[:-1] + token + " "
-        else:
-            text += token + " "
-        return text
 
     @markov.command()
     async def generate(self, ctx, member: discord.Member | None):

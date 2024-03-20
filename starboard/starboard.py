@@ -5,7 +5,7 @@ from redbot.core import Config
 from redbot.core import commands
 
 
-class SimpleStarboard(commands.Cog):
+class Starboard(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.config = Config.get_conf(
@@ -22,10 +22,10 @@ class SimpleStarboard(commands.Cog):
             return f"<:{emoji.name}:{emoji.id}>"
 
     @commands.group()
-    async def simplestarboard(self, _ctx):
+    async def starboard(self, _ctx):
         pass
 
-    @simplestarboard.command()
+    @starboard.command()
     @commands.admin_or_permissions(manage_guild=True)
     async def add(self, ctx, name: str, channel: discord.TextChannel, threshold: int):
         if threshold < 1:
@@ -101,7 +101,7 @@ class SimpleStarboard(commands.Cog):
             confirmation_text, allowed_mentions=discord.AllowedMentions.none()
         )
 
-    @simplestarboard.command()
+    @starboard.command()
     @commands.admin_or_permissions(manage_guild=True)
     async def remove(self, ctx, name: str):
         async with self.config.guild(ctx.guild).starboards() as starboards:
@@ -114,7 +114,7 @@ class SimpleStarboard(commands.Cog):
             else:
                 await ctx.reply("Removed that starboard.")
 
-    @simplestarboard.command()
+    @starboard.command()
     async def list(self, ctx):
         starboards = await self.config.guild(ctx.guild).starboards()
         list_text = "Name, Channel, Threshold, Reactions"
