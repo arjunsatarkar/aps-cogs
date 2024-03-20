@@ -164,12 +164,12 @@ class Markov(commands.Cog):
     def append_token(self, text, token):
         # NOTE: if changing PUNCTUATION, also change the regex in process_message() with the corresponding note
         PUNCTUATION = r".,!?/;()"
-        if token == "/":
-            text = text[:-1] + token
-        elif token == "(":
+        if token == "(":
             text += token
+        elif token == "/":
+            text = text.removesuffix(" ") + token
         elif token in PUNCTUATION:
-            text = text[:-1] + token + " "
+            text = text.removesuffix(" ") + token + " "
         else:
             text += token + " "
         return text
