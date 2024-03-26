@@ -36,7 +36,8 @@ class Markov(commands.Cog):
 
     async def cog_load(self):
         with open(
-            redbot.core.data_manager.bundled_data_path(self) / "init.sql", "r"
+            redbot.core.data_manager.bundled_data_path(self) / "migrations/init.sql",
+            "r",
         ) as setup_script_file:
             async with aiosqlite.connect(self.db_path) as db:
                 await db.executescript(setup_script_file.read())
@@ -92,7 +93,7 @@ class Markov(commands.Cog):
             + [
                 token
                 for token in re.findall(
-                    r"[\w']+|[\.,!?\/;\(\)]|<a?:\w+:\d+>|<#\d+>|<@!?\d+>", content
+                    r"[\w']+|[\.,!?/;()]|<a?:\w+:\d+>|<#\d+>|<@!?\d+>", content
                 )
                 if len(token) <= MAX_TOKEN_LENGTH
             ]
