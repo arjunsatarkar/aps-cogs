@@ -95,7 +95,8 @@ class QuestionOfTheDay(commands.Cog):
         await self.config.last_posted_qotds_at.set(current_time)
 
     @commands.group()
-    async def qotd(self, _ctx):
+    @commands.guild_only()
+    async def qotd(self, _ctx: commands.GuildContext):
         """
         Base for all question of the day commands.
         """
@@ -103,7 +104,7 @@ class QuestionOfTheDay(commands.Cog):
 
     @qotd.command()
     @commands.admin_or_permissions(manage_guild=True)
-    async def add(self, ctx, *, question: str):
+    async def add(self, ctx: commands.GuildContext, *, question: str):
         """
         Add a question directly to the main queue (requires elevated permissions).
         """
@@ -116,10 +117,10 @@ class QuestionOfTheDay(commands.Cog):
                 )
                 return
             questions.append({"question": question, "asked_by": ctx.author.id})
-        await ctx.react_quietly("✅")
+        await ctx.tick()
 
     @qotd.command()
-    async def list(self, ctx):
+    async def list(self, ctx: commands.GuildContext):
         """
         Show questions in the main queue.
         """
@@ -133,7 +134,7 @@ class QuestionOfTheDay(commands.Cog):
 
     @qotd.command()
     @commands.admin_or_permissions(manage_guild=True)
-    async def remove(self, ctx, question_id: int):
+    async def remove(self, ctx: commands.GuildContext, question_id: int):
         """
         Remove a question from the queue using its id (see `qotd list`).
         """
@@ -146,7 +147,7 @@ class QuestionOfTheDay(commands.Cog):
 
     @qotd.command()
     @commands.admin_or_permissions(manage_guild=True)
-    async def post(self, ctx):
+    async def post(self, ctx: commands.GuildContext):
         """
         Post a question immediately.
 
@@ -164,7 +165,12 @@ class QuestionOfTheDay(commands.Cog):
 
     @qotd.command()
     @commands.admin_or_permissions(manage_guild=True)
-    async def post_at(self, ctx, hour_after_midnight_utc: int, minute_after_hour: int):
+    async def post_at(
+        self,
+        ctx: commands.GuildContext,
+        hour_after_midnight_utc: int,
+        minute_after_hour: int,
+    ):
         """Set the time to post a QOTD every day in this server."""
         if (
             hour_after_midnight_utc >= 0
@@ -201,7 +207,7 @@ class QuestionOfTheDay(commands.Cog):
 
     @qotd.command()
     @commands.admin_or_permissions(manage_guild=True)
-    async def post_here(self, ctx):
+    async def post_here(self, ctx: commands.GuildContext):
         """
         Set the current channel as where QOTDs should be posted.
         """
@@ -213,7 +219,7 @@ class QuestionOfTheDay(commands.Cog):
 
     @qotd.command()
     @commands.admin_or_permissions(manage_guild=True)
-    async def toggle(self, ctx):
+    async def toggle(self, ctx: commands.GuildContext):
         """
         Turn on or off automatic posting of questions of the day in this server.
         """
@@ -234,7 +240,7 @@ class QuestionOfTheDay(commands.Cog):
         )
 
     @qotd.command()
-    async def suggest(self, ctx, *, question: str):
+    async def suggest(self, ctx: commands.GuildContext, *, question: str):
         """
         Add a question to the suggestion queue (it can be approved or denied by moderators).
         """
@@ -251,10 +257,10 @@ class QuestionOfTheDay(commands.Cog):
             suggested_questions.append(
                 {"question": question, "asked_by": ctx.author.id}
             )
-        await ctx.react_quietly("✅")
+        await ctx.tick()
 
     @qotd.command()
-    async def suggestions(self, ctx):
+    async def suggestions(self, ctx: commands.GuildContext):
         """
         View all questions in the suggestion queue.
         """
@@ -268,7 +274,9 @@ class QuestionOfTheDay(commands.Cog):
 
     @qotd.command()
     @commands.admin_or_permissions(manage_guild=True)
-    async def approve(self, ctx, suggestion_id: int | typing.Literal["all"]):
+    async def approve(
+        self, ctx: commands.GuildContext, suggestion_id: int | typing.Literal["all"]
+    ):
         """
         Approve a suggestion using its id (see `qotd suggestions`).
 
@@ -318,7 +326,7 @@ class QuestionOfTheDay(commands.Cog):
 
     @qotd.command()
     @commands.admin_or_permissions(manage_guild=True)
-    async def deny(self, ctx, suggestion_id: int):
+    async def deny(self, ctx: commands.GuildContext, suggestion_id: int):
         """
         Decline a suggestion and remove it from the suggestion queue.
 
@@ -410,7 +418,7 @@ class QuestionOfTheDay(commands.Cog):
             latest_qotd_message_info["channel_id"] = new_message.channel.id
             latest_qotd_message_info["message_id"] = new_message.id
 
-    async def paginate_questions(self, ctx, questions: list):
+    async def paginate_questions(self, ctx: commands.GuildContext, questions: list):
         return [
             *redbot.core.utils.chat_formatting.pagify(
                 discord.utils.escape_mentions(
@@ -426,7 +434,9 @@ class QuestionOfTheDay(commands.Cog):
             )
         ]
 
-    async def check_and_handle_question_length(self, ctx, question: str):
+    async def check_and_handle_question_length(
+        self, ctx: commands.GuildContext, question: str
+    ):
         if len(question.encode("utf-8")) > MAX_QUESTION_SIZE:
             await ctx.reply(
                 f"Error: that question is too long! Maximum length is {MAX_QUESTION_SIZE} bytes."
