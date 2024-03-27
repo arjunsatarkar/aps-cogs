@@ -116,7 +116,7 @@ class QuestionOfTheDay(commands.Cog):
                 )
                 return
             questions.append({"question": question, "asked_by": ctx.author.id})
-        await ctx.reply("Question added!")
+        await ctx.react_quietly("✅")
 
     @qotd.command()
     async def list(self, ctx):
@@ -251,7 +251,7 @@ class QuestionOfTheDay(commands.Cog):
             suggested_questions.append(
                 {"question": question, "asked_by": ctx.author.id}
             )
-        await ctx.reply("Added question to suggestion queue!")
+        await ctx.react_quietly("✅")
 
     @qotd.command()
     async def suggestions(self, ctx):
