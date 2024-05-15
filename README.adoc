@@ -1,3 +1,25 @@
 = aps-cogs
 
-My cogs for the https://docs.discord.red/en/stable/[Red] self-hosted https://discord.com/[Discord] bot.
+Discord bot cogs using the Red framework.
+
+== What's In This Repo
+
+=== Markov
+
+Creates https://en.wikipedia.org/wiki/Markov_chain[Markov chains] based on users and guilds. Tokenization
+handles URLs, emoji (including custom emoji), and mentions correctly. The data is stored in an SQLite database
+and both insertion and generation are performant even with large datasets.
+
+=== Question of the Day
+
+Post a question to a designated channel daily; questions can be added by mods and suggested by users. Supports ergonomic
+create-read-update-delete features to make it easy to manage for moderators.
+
+=== Teleport
+
+Allows users to create a portal between two channels at a given point so a conversation can be moved without losing continuity.
+
+=== Pin Delegate
+
+Delegate permission to pin messages in a channel or thread (using a command) without needing to grant user rights with a
+broader scope.
