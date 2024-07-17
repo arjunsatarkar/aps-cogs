@@ -1,0 +1,4 @@
+{
+    "author": ["Arjun Satarkar"],
+    "requirements": ["aiohttp"]
+}
