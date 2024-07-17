@@ -1,4 +1,4 @@
 {
     "author": ["Arjun Satarkar"],
-    "requirements": ["aiohttp"]
+    "requirements": ["aiohttp", "async-lru"]
 }
