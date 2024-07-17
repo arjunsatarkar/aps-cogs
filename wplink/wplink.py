@@ -18,7 +18,7 @@ class WPLink(commands.Cog):
             page_url = await self.look_up_page(title)
             if page_url is not None:
                 await message.reply(
-                    page_url, allowed_mentions=discord.AllowedMentions.none()
+                    f"<{page_url}>", allowed_mentions=discord.AllowedMentions.none()
                 )
 
     async def look_up_page(self, title: str) -> str | None:
