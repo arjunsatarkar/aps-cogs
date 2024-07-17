@@ -10,6 +10,7 @@ import urllib.parse
 class WPLink(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.logger = logging.getLogger("red.aps-cogs.wplink")
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -37,7 +38,7 @@ class WPLink(commands.Cog):
 
     @async_lru.alru_cache(maxsize=512)
     async def look_up_page(self, title: str) -> str | None:
-        logging.info("Looking up page title %s", title)
+        self.logger.info("Looking up page title %s", title)
         MAX_URL_SIZE = 400
         query_url = f"https://en.wikipedia.org/wiki/Special:Search?search={urllib.parse.quote(title)}&go=Go"
         async with aiohttp.ClientSession() as session:
