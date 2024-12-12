@@ -368,7 +368,8 @@ class QuestionOfTheDay(commands.Cog):
                     name="Question of the Day",
                     icon_url=f"attachment://{ICON_PATH.name}",
                 )
-                footer = f"{questions_len - 1} question{'' if questions_len == 1 else 's'} left | "
+                questions_left = questions_len - 1
+                footer = f"{questions_left} question{'' if questions_left == 1 else 's'} left | "
                 suggestions_count = len(
                     await self.config.guild(guild).suggested_questions()
                 )
