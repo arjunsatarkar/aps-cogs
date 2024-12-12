@@ -374,7 +374,7 @@ class QuestionOfTheDay(commands.Cog):
                     await self.config.guild(guild).suggested_questions()
                 )
                 footer += (
-                    f"{suggestions_count} suggestion{'s' if suggestions_count > 1 else ''}"
+                    f"{suggestions_count} suggestion{'' if suggestions_count == 1 else 's'}"
                     if suggestions_count
                     else "no suggestions yet! use qotd suggest"
                 )
